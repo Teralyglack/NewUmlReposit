@@ -9,18 +9,22 @@ using System.Windows.Shapes;
 
 namespace UmlEditor
 {
+      
+        
     public partial class MainWindow : Window
     {
-        private Point startPoint;
-        private bool isDragging = false;
-        private FrameworkElement selectedElement;
-        private Point dragStartPosition;
-        private ResizeAdorner resizeAdorner;
+        private Point _startPoint;
+        private bool _isDragging = false;
+        private FrameworkElement _selectedElement;
+        private Point _dragStartPosition;
+        private DeleteAdorner _deleteAdorner;
+        private ResizeAdorner _resizeAdorner;
 
         public MainWindow()
         {
             InitializeComponent();
         }
+
 
         private void ToolButton_Click(object sender, RoutedEventArgs e)
         {
@@ -66,23 +70,28 @@ namespace UmlEditor
             }
         }
 
+
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (selectedElement != null)
+            if (_selectedElement != null)
             {
-                DrawingCanvas.Children.Remove(selectedElement);
-                selectedElement = null;
+                // Удаляем элемент с холста
+                DrawingCanvas.Children.Remove(_selectedElement);
 
-                // Удаляем Adorner если он есть
-                if (resizeAdorner != null)
+                // Удаляем adorners
+                var layer = AdornerLayer.GetAdornerLayer(_selectedElement);
+                if (layer != null)
                 {
-                    var layer = AdornerLayer.GetAdornerLayer(selectedElement);
-                    if (layer != null)
-                    {
-                        layer.Remove(resizeAdorner);
-                    }
-                    resizeAdorner = null;
+                    if (_deleteAdorner != null)
+                        layer.Remove(_deleteAdorner);
+                    if (_resizeAdorner != null)
+                        layer.Remove(_resizeAdorner);
                 }
+
+                // Сбрасываем ссылки
+                _selectedElement = null;
+                _deleteAdorner = null;
+                _resizeAdorner = null;
             }
         }
 
@@ -126,75 +135,97 @@ namespace UmlEditor
             if (sender is FrameworkElement element)
             {
                 SelectElement(element);
-                dragStartPosition = e.GetPosition(DrawingCanvas);
-                startPoint = e.GetPosition(element);
+                _dragStartPosition = e.GetPosition(DrawingCanvas);
+                _startPoint = e.GetPosition(element);
                 element.CaptureMouse();
-                isDragging = true;
+                _isDragging = true;
                 e.Handled = true;
             }
         }
 
+
         private void SelectElement(FrameworkElement element)
         {
-            if (selectedElement != null)
+            // Удаляем предыдущие adorners
+            if (_selectedElement != null)
             {
-                selectedElement.Effect = null;
-                if (resizeAdorner != null)
-                {
-                    resizeAdorner.Remove();
-                    resizeAdorner = null;
-                }
+                _selectedElement.Effect = null;
+                RemoveAdorners();
             }
 
-            selectedElement = element;
-            if (selectedElement != null)
+            _selectedElement = element;
+
+            if (_selectedElement != null)
             {
-                var effect = new System.Windows.Media.Effects.DropShadowEffect
+                // Добавляем эффект выделения
+                _selectedElement.Effect = new System.Windows.Media.Effects.DropShadowEffect
                 {
                     Color = Colors.Blue,
                     ShadowDepth = 0,
                     BlurRadius = 10
                 };
-                selectedElement.Effect = effect;
 
-                resizeAdorner = new ResizeAdorner(selectedElement);
-                var layer = AdornerLayer.GetAdornerLayer(selectedElement);
-                layer.Add(resizeAdorner);
+                // Добавляем adorners
+                _deleteAdorner = new DeleteAdorner(_selectedElement);
+                _resizeAdorner = new ResizeAdorner(_selectedElement);
+
+                var layer = AdornerLayer.GetAdornerLayer(_selectedElement);
+                layer.Add(_deleteAdorner);
+                layer.Add(_resizeAdorner);
             }
         }
-
+        private void RemoveAdorners()
+        {
+            if (_selectedElement != null)
+            {
+                var layer = AdornerLayer.GetAdornerLayer(_selectedElement);
+                if (layer != null)
+                {
+                    if (_deleteAdorner != null)
+                        layer.Remove(_deleteAdorner);
+                    if (_resizeAdorner != null)
+                        layer.Remove(_resizeAdorner);
+                }
+            }
+            _deleteAdorner = null;
+            _resizeAdorner = null;
+        }
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource is Canvas)
             {
                 SelectElement(null);
-                startPoint = e.GetPosition(DrawingCanvas);
+                _startPoint = e.GetPosition(DrawingCanvas);
             }
         }
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isDragging && selectedElement != null && e.LeftButton == MouseButtonState.Pressed)
+            if (_isDragging && _selectedElement != null && e.LeftButton == MouseButtonState.Pressed)
             {
                 Point currentPosition = e.GetPosition(DrawingCanvas);
-                double left = Canvas.GetLeft(selectedElement) + (currentPosition.X - dragStartPosition.X);
-                double top = Canvas.GetTop(selectedElement) + (currentPosition.Y - dragStartPosition.Y);
+                double left = Canvas.GetLeft(_selectedElement) + (currentPosition.X - _dragStartPosition.X);
+                double top = Canvas.GetTop(_selectedElement) + (currentPosition.Y - _dragStartPosition.Y);
 
-                Canvas.SetLeft(selectedElement, left);
-                Canvas.SetTop(selectedElement, top);
+                Canvas.SetLeft(_selectedElement, left);
+                Canvas.SetTop(_selectedElement, top);
 
-                dragStartPosition = currentPosition;
+                _dragStartPosition = currentPosition;
+
+                // Обновляем положение adorners
+                AdornerLayer.GetAdornerLayer(_selectedElement)?.Update();
             }
         }
 
         private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (isDragging && selectedElement != null)
+            if (_isDragging && _selectedElement != null)
             {
-                selectedElement.ReleaseMouseCapture();
-                isDragging = false;
+                _selectedElement.ReleaseMouseCapture();
+                _isDragging = false;
             }
         }
+
 
         private void Canvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -301,4 +332,51 @@ namespace UmlEditor
             }
         }
     }
+    public class DeleteAdorner : Adorner
+    {
+        private readonly Button _deleteButton;
+        private readonly VisualCollection _visualChildren;
+
+        public DeleteAdorner(UIElement adornedElement) : base(adornedElement)
+        {
+            _visualChildren = new VisualCollection(this);
+
+            _deleteButton = new Button
+            {
+                Content = "✕",
+                Width = 20,
+                Height = 20,
+                Background = Brushes.Red,
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                Padding = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(-10, -10, 0, 0),
+                Cursor = Cursors.Hand
+            };
+
+            _deleteButton.Click += (sender, e) =>
+            {
+                if (AdornedElement is FrameworkElement element && element.Parent is Panel parent)
+                {
+                    parent.Children.Remove(element);
+                }
+            };
+
+            _visualChildren.Add(_deleteButton);
+        }
+
+        protected override int VisualChildrenCount => _visualChildren.Count;
+        protected override Visual GetVisualChild(int index) => _visualChildren[index];
+
+        protected override Size ArrangeOverride(Size finalSize)
+        {
+            _deleteButton.Arrange(new Rect(finalSize));
+            return finalSize;
+        }
+    }
 }
+
+
+

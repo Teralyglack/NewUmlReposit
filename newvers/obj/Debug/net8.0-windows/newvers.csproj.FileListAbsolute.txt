@@ -18,3 +18,4 @@ D:\projectnewvers\newvers\newvers\obj\Debug\net8.0-windows\refint\newvers.dll
 D:\projectnewvers\newvers\newvers\obj\Debug\net8.0-windows\newvers.pdb
 D:\projectnewvers\newvers\newvers\obj\Debug\net8.0-windows\newvers.genruntimeconfig.cache
 D:\projectnewvers\newvers\newvers\obj\Debug\net8.0-windows\ref\newvers.dll
+D:\projectnewvers\newvers\newvers\obj\Debug\net8.0-windows\newvers.sourcelink.json
