@@ -26,7 +26,7 @@ Visual Studio 2019 или выше
 Шаги по установке:
 
 1. Клонируйте репозиторий:
-git clone https://github.com/ваш_пользователь/ваш_репозиторий.git
+https://github.com/Teralyglack/NewUmlReposit/tree/master
 Откройте проект в Visual Studio:
 
 2. Запустите Visual Studio.
